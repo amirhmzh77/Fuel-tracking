@@ -420,8 +420,8 @@ ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
       if (r.date <= date) prev = r; else if (!next) next = r;
     });
     var out = { prev: prev, next: next, dist: prev ? odoKm - prev.odoKm : null, err: "" };
-    if (prev && odoKm <= prev.odoKm) out.err = "Must be higher than your last reading (" + (prev.odoKm / KPU[S.dist]).toLocaleString("en", { maximumFractionDigits: 1 }) + " " + S.dist + ").";
-    else if (next && odoKm >= next.odoKm) out.err = "Must be lower than the next reading (" + (next.odoKm / KPU[S.dist]).toLocaleString("en", { maximumFractionDigits: 1 }) + " " + S.dist + ") on a later date.";
+    if (prev && odoKm <= prev.odoKm + 0.1) out.err = "Must be higher than your last reading (" + (prev.odoKm / KPU[S.dist]).toLocaleString("en", { maximumFractionDigits: 1 }) + " " + S.dist + ").";
+    else if (next && odoKm >= next.odoKm - 0.1) out.err = "Must be lower than the next reading (" + (next.odoKm / KPU[S.dist]).toLocaleString("en", { maximumFractionDigits: 1 }) + " " + S.dist + ") on a later date.";
     return out;
   }
   /* Returns null for a starting-point record (no earlier odometer reading). */
@@ -499,6 +499,15 @@ ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
     return car;
   }
   function loadFields() { ["plate", "make", "year", "cc"].forEach(function (k) { $(k).value = mode === "new" ? "" : (S.car[k] || ""); }); }
+  var odoAuto = "";
+  /* Fill the odometer box with the active car's last reading so the user only edits the digits that changed. */
+  function prefillOdo(force) {
+    var recs = records.filter(function (r) { return plateKey(r.car) === activeKey; }).sort(cmp);
+    var last = recs[recs.length - 1], el = $("dist");
+    if (!force && el.value !== "" && el.value !== odoAuto) return;
+    odoAuto = last ? String(+(last.odoKm / KPU[S.dist]).toFixed(1)) : "";
+    el.value = odoAuto;
+  }
   function renderLast() {
     var box = $("lastFill");
     var recs = mode === "new" ? [] : records.filter(function (r) { return plateKey(r.car) === activeKey; }).sort(cmp);
@@ -537,6 +546,7 @@ ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
       if (info.err) {
         tripOk = false;
         if (touched.dist) { $("e-dist").textContent = info.err; $("w-dist").classList.add("bad"); }
+        else if (info.prev && Math.abs(v.dist * KPU[S.dist] - info.prev.odoKm) <= 0.1) $("h-dist").textContent = "Update this to the reading on your dashboard now.";
       } else if (info.prev) {
         $("h-dist").textContent = "Distance since last fill-up: " + (info.dist / KPU[S.dist]).toLocaleString("en", { maximumFractionDigits: 1 }) + " " + S.dist;
       } else {
@@ -687,7 +697,7 @@ ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
   $("s-vol").value = S.vol; $("s-dist").value = S.dist; $("s-cur").value = S.cur;
   function saveSettings() { memS = S; lsSet(SKEY, S); }
   $("s-vol").addEventListener("change", function () { S.vol = this.value; saveSettings(); renderAll(); });
-  $("s-dist").addEventListener("change", function () { S.dist = this.value; saveSettings(); renderAll(); });
+  $("s-dist").addEventListener("change", function () { S.dist = this.value; saveSettings(); prefillOdo(false); renderAll(); });
   $("s-cur").addEventListener("change", function () { S.cur = this.value; saveSettings(); renderAll(); });
 
   ["fuel", "cost", "dist", "plate", "make", "year", "cc"].forEach(function (id) {
@@ -704,8 +714,7 @@ ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
     var k = this.value;
     S.car = S.cars.filter(function (c) { return plateKey(c) === k; })[0] || S.cars[0];
     activeKey = plateKey(S.car); filterPlate = activeKey; touched = {}; disarm();
-    $("dist").value = "";
-    saveSettings(); loadFields(); renderAll();
+    saveSettings(); loadFields(); prefillOdo(true); renderAll();
   });
   $("addCar").addEventListener("click", function () {
     mode = "new"; touched = {}; disarm(); loadFields(); renderAll(); $("plate").focus();
@@ -720,7 +729,7 @@ ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
     if (ok && S.cars.some(function (x) { return plateKey(x) === plateKey(car); })) { updateCar(); $("e-plate").textContent = "Another car already uses this plate."; $("w-plate").classList.add("bad"); return; }
     if (!ok) { updateCar(); return; }
     S.cars.push(car); S.car = car; activeKey = plateKey(car); filterPlate = activeKey; mode = "edit"; touched = {};
-    saveSettings(); loadFields(); renderAll();
+    saveSettings(); loadFields(); prefillOdo(true); renderAll();
   });
   $("removeCar").addEventListener("click", function () {
     if (!removeArmed) { removeArmed = true; this.textContent = "Tap again to remove car and its records"; return; }
@@ -728,7 +737,7 @@ ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
     records = records.filter(function (r) { return plateKey(r.car) !== k; });
     S.cars = S.cars.filter(function (c) { return plateKey(c) !== k; });
     S.car = S.cars[0]; activeKey = plateKey(S.car); filterPlate = activeKey; touched = {}; disarm();
-    saveSettings(); loadFields(); persist();
+    saveSettings(); loadFields(); persist(); prefillOdo(true); updateForm();
   });
   $("s-car").addEventListener("change", function () { filterPlate = this.value; renderAll(); });
   $("date").addEventListener("input", function () { touched.dist = true; updateForm(); });
@@ -740,9 +749,11 @@ ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
     if (!v) return;
     var id = records.reduce(function (m, r) { return Math.max(m, r.id); }, 0) + 1;
     records.push({ id: id, date: $("date").value, fuelL: v.fuel * LPU[S.vol], odoKm: v.dist * KPU[S.dist], cost: v.cost, cur: S.cur, car: v.car });
-    ["fuel", "cost", "dist"].forEach(function (k) { $(k).value = ""; });
+    ["fuel", "cost"].forEach(function (k) { $(k).value = ""; });
     touched = {};
     persist();
+    prefillOdo(true);
+    updateForm();
     $("fuel").focus();
   });
   $("clearSamples").addEventListener("click", function () {
@@ -907,6 +918,11 @@ ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
   ["plate", "make", "year", "cc"].forEach(function (k) { $(k).value = S.car[k] || ""; });
   var d = new Date();
   $("date").value = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  /* With example records the form keeps its demo numbers; with real data it starts from the last odometer reading. */
+  (function () {
+    var recs = records.filter(function (r) { return plateKey(r.car) === activeKey; }).sort(cmp), last = recs[recs.length - 1];
+    if (!last || !last.sample) { $("fuel").value = ""; $("cost").value = ""; prefillOdo(true); }
+  })();
   renderAll();
 })();
 </script>
