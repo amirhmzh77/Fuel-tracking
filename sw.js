@@ -1,5 +1,5 @@
 /* Offline support: app files are cached on first load; fonts are cached as they are used. */
-const CACHE = "fueltrack-v3";
+const CACHE = "fueltrack-v4";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/maskable-512.png", "./icons/apple-touch-icon.png"];
 
 self.addEventListener("install", (e) => {

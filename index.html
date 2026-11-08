@@ -126,6 +126,9 @@ select:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
 .scan textarea:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
 .scan progress { width: 100%; height: 8px; margin-top: 10px; accent-color: var(--accent); }
 .scan progress[hidden], .scan [hidden] { display: none; }
+.last { display: flex; align-items: center; gap: 10px; background: var(--accent-soft); color: var(--ink); border-radius: 12px; padding: 10px 12px; margin-bottom: 14px; font-size: 0.88rem; }
+.last .i { color: var(--accent); }
+.last b { font-family: var(--font-display); font-variant-numeric: tabular-nums; }
 .hint { color: var(--muted); font-size: 0.78rem; margin-top: 4px; }
 .err { color: var(--danger); font-size: 0.78rem; min-height: 1.1em; margin-top: 4px; }
 .results { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
@@ -251,6 +254,7 @@ ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
 
   <section class="card" aria-labelledby="newTitle">
     <h2 id="newTitle">New fill-up</h2>
+    <div class="last" id="lastFill" aria-live="polite"></div>
     <div class="scan">
       <div class="scan-top"><svg class="i"><use href="#ic-receipt"/></svg><div><strong>Fuel receipt</strong><div class="hint" style="margin:0">Scan a photo or paste the text to fill in litres, amount and date.</div></div></div>
       <div class="row-btns" style="margin-top:10px">
@@ -495,6 +499,14 @@ ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
     return car;
   }
   function loadFields() { ["plate", "make", "year", "cc"].forEach(function (k) { $(k).value = mode === "new" ? "" : (S.car[k] || ""); }); }
+  function renderLast() {
+    var box = $("lastFill");
+    var recs = mode === "new" ? [] : records.filter(function (r) { return plateKey(r.car) === activeKey; }).sort(cmp);
+    var last = recs[recs.length - 1];
+    if (!last) { box.innerHTML = '<svg class="i"><use href="#ic-road"/></svg><span>No fill-up saved yet for this car. Your first one becomes the starting point.</span>'; return; }
+    var odo = (last.odoKm / KPU[S.dist]).toLocaleString("en", { maximumFractionDigits: 1 });
+    box.innerHTML = '<svg class="i"><use href="#ic-cal"/></svg><span>Last fill-up <b>' + dateLabel(last.date) + '</b> at <b>' + odo + ' ' + S.dist + '</b></span>';
+  }
   function renderGarage() {
     var sel = $("s-active");
     sel.innerHTML = S.cars.map(function (c) { return '<option value="' + esc(plateKey(c)) + '">' + esc(c.plate + (c.make ? " · " + c.make : "")) + '</option>'; }).join("");
@@ -662,7 +674,7 @@ ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
   }
   function persist() { memR = records; lsSet(KEY, records); renderAll(); }
   function renderAll() {
-    computeDist(); renderLabels(); renderGarage(); renderCars(); renderSummary(); renderHistory(); renderChart(); updateForm();
+    computeDist(); renderLabels(); renderGarage(); renderLast(); renderCars(); renderSummary(); renderHistory(); renderChart(); updateForm();
     $("sampleBanner").hidden = !records.some(function (r) { return r.sample; });
   }
 
@@ -683,7 +695,7 @@ ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
     $(id).addEventListener("blur", function () { touched[id] = true; updateForm(); });
   });
   ["plate", "make", "year", "cc"].forEach(function (id) {
-    $(id).addEventListener("input", function () { if (mode === "edit") { renderGarage(); renderCars(); renderHistory(); } });
+    $(id).addEventListener("input", function () { if (mode === "edit") { renderGarage(); renderLast(); renderCars(); renderHistory(); } });
   });
   $("plate").addEventListener("blur", function () { var r = checkCar("plate"); if (r.v) this.value = r.v; });
   var removeArmed = false;
