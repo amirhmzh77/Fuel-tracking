@@ -1,5 +1,5 @@
 /* Offline support: app files are cached on first load; fonts are cached as they are used. */
-const CACHE = "fueltrack-v2";
+const CACHE = "fueltrack-v3";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/maskable-512.png", "./icons/apple-touch-icon.png"];
 
 self.addEventListener("install", (e) => {
@@ -25,7 +25,7 @@ self.addEventListener("fetch", (e) => {
         return hit || net;
       })
     );
-  } else if (url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com") {
+  } else if (url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com" || url.hostname === "cdn.jsdelivr.net") {
     e.respondWith(
       caches.match(req).then((hit) => hit || fetch(req).then((res) => {
         const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); return res;
