@@ -109,6 +109,15 @@ select:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
 .input-wrap .i { color: var(--accent); }
 .input-wrap input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 1.1rem; font-weight: 500; padding: 12px 0; outline: none; font-variant-numeric: tabular-nums; }
 .unit { color: var(--muted); font-weight: 600; font-size: 0.9rem; }
+.garage { display: flex; gap: 8px; margin-bottom: 12px; }
+.garage select { flex: 1; min-width: 0; min-height: 48px; }
+.mini { min-height: 48px; border: 1.5px solid var(--accent); background: transparent; color: var(--accent); border-radius: 12px; font: inherit; font-weight: 700; font-size: 0.9rem; padding: 0 14px; cursor: pointer; white-space: nowrap; }
+.mini.solid { background: var(--accent); color: var(--accent-ink); }
+.mini.danger { border-color: var(--line); color: var(--danger); }
+.mini[hidden] { display: none; }
+.mini:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.row-btns { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.row-btns .mini { flex: 1; }
 .hint { color: var(--muted); font-size: 0.78rem; margin-top: 4px; }
 .err { color: var(--danger); font-size: 0.78rem; min-height: 1.1em; margin-top: 4px; }
 .results { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
@@ -196,7 +205,11 @@ ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
   <div class="banner" id="sampleBanner" hidden><span>Showing example records.</span><button type="button" id="clearSamples">Clear examples</button></div>
 
   <section class="card" aria-labelledby="carTitle">
-    <h2 id="carTitle">Your car</h2>
+    <h2 id="carTitle">Your cars</h2>
+    <div class="garage">
+      <select id="s-active" aria-label="Active car"></select>
+      <button class="mini" type="button" id="addCar">Add car</button>
+    </div>
     <div class="grid2">
       <div class="field wide">
         <label for="plate">Car plate number</label>
@@ -219,6 +232,12 @@ ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
         <div class="err" id="e-cc"></div>
       </div>
     </div>
+    <div class="row-btns">
+      <button class="mini solid" type="button" id="saveCar" hidden>Save car</button>
+      <button class="mini" type="button" id="cancelCar" hidden>Cancel</button>
+      <button class="mini danger" type="button" id="removeCar">Remove this car</button>
+    </div>
+    <p class="note" id="carNote">Pick a car to log fill-ups for it. Each car keeps its own odometer history.</p>
   </section>
 
   <section class="card" aria-labelledby="newTitle">
@@ -334,6 +353,21 @@ ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
   }
 
   /* Core math in display units: f = volume, c = money, d = distance */
+  /* Garage: S.cars is the list of cars, S.car is the active one. */
+  var mode = "edit", activeKey = "";
+  function addCar(c) {
+    if (!c || !c.plate) return;
+    var k = plateKey(c);
+    if (!S.cars.some(function (x) { return plateKey(x) === k; })) S.cars.push({ plate: c.plate, make: c.make || "", year: c.year || "", cc: c.cc || "" });
+  }
+  if (!S.cars) S.cars = [];
+  records.forEach(function (r) { addCar(r.car); });
+  addCar(S.car);
+  if (!S.cars.length) S.cars.push({ plate: EXAMPLE_CAR.plate, make: EXAMPLE_CAR.make, year: EXAMPLE_CAR.year, cc: EXAMPLE_CAR.cc });
+  S.car = S.cars.filter(function (x) { return plateKey(x) === plateKey(S.car); })[0] || S.cars[0];
+  activeKey = plateKey(S.car);
+  filterPlate = activeKey;
+
   function calc(f, c, d) {
     return { eff: d / f, cost: c / d, per: d / c, cons: f / d * 100 };
   }
@@ -418,8 +452,36 @@ ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
       $("w-" + id).classList.toggle("bad", !!(r.err && touched[id]));
       if (r.err) ok = false; else car[id] = r.v;
     });
-    if (ok) { S.car = car; saveSettings(); }
-    return ok ? car : null;
+    if (mode === "new" || !ok) return null;
+    var nk = plateKey(car);
+    if (nk !== activeKey && S.cars.some(function (x) { return plateKey(x) === nk; })) {
+      $("e-plate").textContent = "Another car already uses this plate.";
+      $("w-plate").classList.add("bad");
+      return null;
+    }
+    var cur = S.cars.filter(function (x) { return plateKey(x) === activeKey; })[0];
+    var changed = !cur || ["plate", "make", "year", "cc"].some(function (k) { return cur[k] !== car[k]; });
+    if (changed) {
+      if (cur) { cur.plate = car.plate; cur.make = car.make; cur.year = car.year; cur.cc = car.cc; } else { cur = { plate: car.plate, make: car.make, year: car.year, cc: car.cc }; S.cars.push(cur); }
+      records.forEach(function (r) { if (plateKey(r.car) === activeKey) r.car = { plate: car.plate, make: car.make, year: car.year, cc: car.cc }; });
+      if (filterPlate === activeKey) filterPlate = nk;
+      activeKey = nk; memR = records; lsSet(KEY, records);
+    }
+    S.car = cur || car; saveSettings();
+    return car;
+  }
+  function loadFields() { ["plate", "make", "year", "cc"].forEach(function (k) { $(k).value = mode === "new" ? "" : (S.car[k] || ""); }); }
+  function renderGarage() {
+    var sel = $("s-active");
+    sel.innerHTML = S.cars.map(function (c) { return '<option value="' + esc(plateKey(c)) + '">' + esc(c.plate + (c.make ? " · " + c.make : "")) + '</option>'; }).join("");
+    sel.value = activeKey;
+    var isNew = mode === "new";
+    sel.disabled = isNew; $("addCar").hidden = isNew;
+    $("saveCar").hidden = !isNew; $("cancelCar").hidden = !isNew;
+    $("removeCar").hidden = isNew || S.cars.length < 2;
+    $("carTitle").textContent = isNew ? "New car" : "Your cars";
+    $("carNote").textContent = isNew ? "Enter the new car's details, then tap Save car." : "Pick a car to log fill-ups for it. Each car keeps its own odometer history.";
+    $("carSub").textContent = isNew ? "New car" : carLine(S.car);
   }
 
   function updateForm() {
@@ -568,18 +630,15 @@ ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
 
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function renderCars() {
-    var sel = $("s-car"), seen = {}, opts = [{ k: "", t: "All cars" }];
-    records.forEach(function (r) {
-      var k = plateKey(r.car);
-      if (k && !seen[k]) { seen[k] = 1; opts.push({ k: k, t: r.car.plate + (r.car.make ? " · " + r.car.make : "") }); }
-    });
-    if (filterPlate && !seen[filterPlate]) filterPlate = "";
+    var sel = $("s-car"), opts = [{ k: "", t: "All cars" }];
+    S.cars.forEach(function (c) { opts.push({ k: plateKey(c), t: c.plate + (c.make ? " · " + c.make : "") }); });
+    if (filterPlate && !S.cars.some(function (c) { return plateKey(c) === filterPlate; })) filterPlate = "";
     sel.innerHTML = opts.map(function (o) { return '<option value="' + esc(o.k) + '">' + esc(o.t) + '</option>'; }).join("");
     sel.value = filterPlate;
   }
   function persist() { memR = records; lsSet(KEY, records); renderAll(); }
   function renderAll() {
-    computeDist(); renderLabels(); renderCars(); $("carSub").textContent = carLine(S.car); renderSummary(); renderHistory(); renderChart(); updateForm();
+    computeDist(); renderLabels(); renderGarage(); renderCars(); renderSummary(); renderHistory(); renderChart(); updateForm();
     $("sampleBanner").hidden = !records.some(function (r) { return r.sample; });
   }
 
@@ -599,7 +658,42 @@ ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
     $(id).addEventListener("input", function () { touched[id] = true; updateForm(); });
     $(id).addEventListener("blur", function () { touched[id] = true; updateForm(); });
   });
+  ["plate", "make", "year", "cc"].forEach(function (id) {
+    $(id).addEventListener("input", function () { if (mode === "edit") { renderGarage(); renderCars(); renderHistory(); } });
+  });
   $("plate").addEventListener("blur", function () { var r = checkCar("plate"); if (r.v) this.value = r.v; });
+  var removeArmed = false;
+  function disarm() { removeArmed = false; $("removeCar").textContent = "Remove this car"; }
+  $("s-active").addEventListener("change", function () {
+    var k = this.value;
+    S.car = S.cars.filter(function (c) { return plateKey(c) === k; })[0] || S.cars[0];
+    activeKey = plateKey(S.car); filterPlate = activeKey; touched = {}; disarm();
+    $("dist").value = "";
+    saveSettings(); loadFields(); renderAll();
+  });
+  $("addCar").addEventListener("click", function () {
+    mode = "new"; touched = {}; disarm(); loadFields(); renderAll(); $("plate").focus();
+  });
+  $("cancelCar").addEventListener("click", function () {
+    mode = "edit"; touched = {}; loadFields(); renderAll();
+  });
+  $("saveCar").addEventListener("click", function () {
+    touched.plate = touched.make = touched.year = touched.cc = true;
+    var car = {}, ok = true;
+    ["plate", "make", "year", "cc"].forEach(function (id) { var r = checkCar(id); if (r.err) ok = false; else car[id] = r.v; });
+    if (ok && S.cars.some(function (x) { return plateKey(x) === plateKey(car); })) { updateCar(); $("e-plate").textContent = "Another car already uses this plate."; $("w-plate").classList.add("bad"); return; }
+    if (!ok) { updateCar(); return; }
+    S.cars.push(car); S.car = car; activeKey = plateKey(car); filterPlate = activeKey; mode = "edit"; touched = {};
+    saveSettings(); loadFields(); renderAll();
+  });
+  $("removeCar").addEventListener("click", function () {
+    if (!removeArmed) { removeArmed = true; this.textContent = "Tap again to remove car and its records"; return; }
+    var k = activeKey;
+    records = records.filter(function (r) { return plateKey(r.car) !== k; });
+    S.cars = S.cars.filter(function (c) { return plateKey(c) !== k; });
+    S.car = S.cars[0]; activeKey = plateKey(S.car); filterPlate = activeKey; touched = {}; disarm();
+    saveSettings(); loadFields(); persist();
+  });
   $("s-car").addEventListener("change", function () { filterPlate = this.value; renderAll(); });
   $("date").addEventListener("input", function () { touched.dist = true; updateForm(); });
   $("form").addEventListener("submit", function (e) { e.preventDefault(); });
