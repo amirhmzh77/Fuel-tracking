@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b6e83" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c161d" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="FuelTrack">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>Fuel Efficiency Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: single-column mobile dashboard: summary tiles, units and currency, entry form with live results, trend chart, history. */
+:root {
+  --bg: #f2f5f7;
+  --surface: #ffffff;
+  --ink: #10222e;
+  --muted: #5d7280;
+  --line: #dce4e9;
+  --accent: #0b6e83;
+  --accent-ink: #ffffff;
+  --accent-soft: #dff0f4;
+  --amber: #c9790a;
+  --amber-soft: #fbeed8;
+  --danger: #b3261e;
+  --font-display: "Sora", system-ui, sans-serif;
+  --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c161d;
+    --surface: #14232d;
+    --ink: #e8f0f4;
+    --muted: #93a8b5;
+    --line: #253946;
+    --accent: #4fc3d9;
+    --accent-ink: #062029;
+    --accent-soft: #163845;
+    --amber: #f0a73c;
+    --amber-soft: #3a2b12;
+    --danger: #ff8a80;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c161d;
+  --surface: #14232d;
+  --ink: #e8f0f4;
+  --muted: #93a8b5;
+  --line: #253946;
+  --accent: #4fc3d9;
+  --accent-ink: #062029;
+  --accent-soft: #163845;
+  --amber: #f0a73c;
+  --amber-soft: #3a2b12;
+  --danger: #ff8a80;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.4;
+  -webkit-text-size-adjust: 100%;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(32px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+.app { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+svg.i { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+svg.s { width: 16px; height: 16px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.logo { width: 40px; height: 40px; border-radius: 12px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; flex: none; }
+h1 { font-family: var(--font-display); font-size: 1.2rem; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.sub { color: var(--muted); font-size: 0.8rem; }
+.theme-btn { border: 1px solid var(--line); background: var(--surface); color: var(--ink); width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; cursor: pointer; flex: none; }
+h2 { font-family: var(--font-display); font-size: 0.95rem; margin: 0 0 12px; font-weight: 600; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px; }
+.tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.tile.hero { grid-column: span 2; background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.tile .lbl { font-size: 0.75rem; opacity: 0.8; display: flex; align-items: center; gap: 6px; }
+.tile .val { font-family: var(--font-display); font-weight: 700; font-size: 1.25rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.tile.hero .val { font-size: 2.1rem; }
+.tile .val small { font-size: 0.8rem; font-weight: 500; opacity: 0.8; }
+.banner { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--amber-soft); color: var(--ink); border-radius: 12px; padding: 10px 12px; font-size: 0.85rem; }
+.banner[hidden] { display: none; }
+.banner button { background: none; border: 0; color: var(--amber); font: inherit; font-weight: 600; cursor: pointer; padding: 8px; min-height: 44px; }
+.settings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.settings label { display: block; font-size: 0.72rem; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+select { width: 100%; min-height: 46px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--bg); color: var(--ink); font: inherit; font-size: 0.95rem; font-weight: 500; padding: 0 8px; }
+select:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+.note { color: var(--muted); font-size: 0.75rem; margin: 10px 0 0; }
+.fields { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.field label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 6px; color: var(--muted); }
+.input-wrap { display: flex; align-items: center; gap: 10px; border: 1.5px solid var(--line); border-radius: 14px; padding: 0 14px; background: var(--bg); min-height: 52px; }
+.input-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.input-wrap.bad { border-color: var(--danger); }
+.input-wrap .i { color: var(--accent); }
+.input-wrap input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 1.1rem; font-weight: 500; padding: 12px 0; outline: none; font-variant-numeric: tabular-nums; }
+.unit { color: var(--muted); font-weight: 600; font-size: 0.9rem; }
+.hint { color: var(--muted); font-size: 0.78rem; margin-top: 4px; }
+.err { color: var(--danger); font-size: 0.78rem; min-height: 1.1em; margin-top: 4px; }
+.results { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.res { background: var(--bg); border-radius: 14px; padding: 12px; min-width: 0; }
+.res .lbl { color: var(--muted); font-size: 0.75rem; }
+.res .val { font-family: var(--font-display); font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.res .val small { font-size: 0.72rem; color: var(--muted); font-weight: 500; }
+.btn { width: 100%; min-height: 52px; border: 0; border-radius: 14px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 14px; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn:focus-visible, .theme-btn:focus-visible, .tab:focus-visible, .del:focus-visible, .banner button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.tabs { display: inline-flex; background: var(--bg); border-radius: 12px; padding: 3px; margin-bottom: 8px; max-width: 100%; overflow-x: auto; }
+.tab { border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 0.85rem; font-weight: 600; padding: 8px 14px; border-radius: 9px; cursor: pointer; min-height: 40px; white-space: nowrap; }
+.tab[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+.chart svg { width: 100%; height: auto; display: block; }
+.chart text { fill: var(--muted); font-family: var(--font-body); font-size: 10px; }
+.empty { color: var(--muted); font-size: 0.9rem; padding: 12px 0; }
+ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.hist li { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-top: 1px solid var(--line); }
+.hist li:first-child { border-top: 0; }
+.h-main { flex: 1; min-width: 0; }
+.h-top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.h-date { font-weight: 600; font-size: 0.9rem; }
+.h-eff { font-family: var(--font-display); font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.h-det { color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.tag { font-size: 0.65rem; background: var(--amber-soft); color: var(--amber); border-radius: 6px; padding: 1px 6px; margin-left: 6px; font-weight: 700; vertical-align: middle; }
+.del { border: 0; background: transparent; color: var(--muted); width: 44px; height: 44px; border-radius: 10px; cursor: pointer; display: grid; place-items: center; }
+.del:hover { color: var(--danger); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid2 .wide { grid-column: span 2; }
+.input-wrap.plain { padding: 0 12px; }
+.input-wrap.plain input { font-size: 1rem; }
+.input-wrap.plate input { text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+.hist-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+.hist-head h2 { margin: 0; }
+.hist-head select { width: auto; max-width: 55%; min-height: 40px; }
+.plate-tag { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; margin-left: 6px; color: var(--ink); vertical-align: middle; white-space: nowrap; }
+@media (max-width: 360px) { .settings { grid-template-columns: 1fr; } .grid2 { grid-template-columns: 1fr; } .grid2 .wide { grid-column: auto; } }
+@media (prefers-reduced-motion: no-preference) { .btn, .input-wrap { transition: box-shadow .15s, border-color .15s, opacity .15s; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="ic-fuel" viewBox="0 0 24 24"><path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16"/><path d="M3 21h12"/><path d="M6 8h6"/><path d="M14 10h2a2 2 0 0 1 2 2v4a1.5 1.5 0 0 0 3 0V9l-3-3"/></symbol>
+  <symbol id="ic-road" viewBox="0 0 24 24"><path d="M8 3 5 21"/><path d="M16 3l3 18"/><path d="M12 4v3"/><path d="M12 10.5v3"/><path d="M12 17v3"/></symbol>
+  <symbol id="ic-coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v10"/><path d="M14.8 9.2C14.3 8.4 13.3 8 12 8c-1.7 0-2.8.8-2.8 2 0 2.8 5.6 1.2 5.6 4 0 1.2-1.1 2-2.8 2-1.3 0-2.4-.5-2.9-1.4"/></symbol>
+  <symbol id="ic-gauge" viewBox="0 0 24 24"><path d="M4 18a9 9 0 1 1 16 0"/><path d="m12 14 4-5"/></symbol>
+  <symbol id="ic-trash" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/></symbol>
+  <symbol id="ic-theme" viewBox="0 0 24 24"><path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/></symbol>
+  <symbol id="ic-car" viewBox="0 0 24 24"><path d="M5 16V11l2-5h10l2 5v5"/><path d="M3 16h18v3H3z"/><path d="M5 11h14"/><circle cx="7.5" cy="13.5" r=".6"/><circle cx="16.5" cy="13.5" r=".6"/></symbol>
+  <symbol id="ic-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+</svg>
+
+<main class="app">
+  <header>
+    <div class="brand">
+      <div class="logo"><svg class="i"><use href="#ic-fuel"/></svg></div>
+      <div><h1>Fuel Efficiency Tracker</h1><div class="sub" id="carSub">Volume, money and distance</div></div>
+    </div>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Switch light or dark mode"><svg class="i"><use href="#ic-theme"/></svg></button>
+  </header>
+
+  <section class="card" aria-labelledby="setTitle">
+    <h2 id="setTitle">Units and currency</h2>
+    <div class="settings">
+      <div><label for="s-vol">Fuel volume</label>
+        <select id="s-vol"><option value="L">Litres (L)</option><option value="USgal">US gallons</option><option value="UKgal">UK gallons</option></select></div>
+      <div><label for="s-dist">Distance</label>
+        <select id="s-dist"><option value="km">Kilometres</option><option value="mi">Miles</option></select></div>
+      <div><label for="s-cur">Currency</label><select id="s-cur"></select></div>
+    </div>
+    <p class="note">Values you enter use the units selected here. Everything on the page converts when you change them. Currency conversion uses built-in approximate rates (no live feed).</p>
+  </section>
+
+  <section class="tiles" aria-label="Summary of saved records">
+    <div class="tile hero">
+      <div class="lbl"><svg class="i s"><use href="#ic-gauge"/></svg>Average fuel economy</div>
+      <div class="val" id="avgEff">—</div>
+    </div>
+    <div class="tile"><div class="lbl"><svg class="i s"><use href="#ic-coin"/></svg><span id="l-avgCost">Avg cost per km</span></div><div class="val" id="avgCost">—</div></div>
+    <div class="tile"><div class="lbl"><svg class="i s"><use href="#ic-fuel"/></svg><span id="l-avgCons">Avg L/100km</span></div><div class="val" id="avgCons">—</div></div>
+    <div class="tile"><div class="lbl"><svg class="i s"><use href="#ic-road"/></svg>Total distance</div><div class="val" id="totDist">—</div></div>
+    <div class="tile"><div class="lbl"><svg class="i s"><use href="#ic-coin"/></svg>Total spent</div><div class="val" id="totCost">—</div></div>
+  </section>
+
+  <div class="banner" id="sampleBanner" hidden><span>Showing example records.</span><button type="button" id="clearSamples">Clear examples</button></div>
+
+  <section class="card" aria-labelledby="carTitle">
+    <h2 id="carTitle">Your car</h2>
+    <div class="grid2">
+      <div class="field wide">
+        <label for="plate">Car plate number</label>
+        <div class="input-wrap plate" id="w-plate"><svg class="i"><use href="#ic-car"/></svg><input id="plate" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="12" placeholder="WXY 1234" value="WXY 1234"></div>
+        <div class="err" id="e-plate"></div>
+      </div>
+      <div class="field wide">
+        <label for="make">Car make and model</label>
+        <div class="input-wrap plain" id="w-make"><input id="make" type="text" autocomplete="off" maxlength="40" placeholder="Toyota Vios" value="Perodua Myvi"></div>
+        <div class="err" id="e-make"></div>
+      </div>
+      <div class="field">
+        <label for="year">Year</label>
+        <div class="input-wrap plain" id="w-year"><input id="year" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="2021" value="2021"></div>
+        <div class="err" id="e-year"></div>
+      </div>
+      <div class="field">
+        <label for="cc">Engine size</label>
+        <div class="input-wrap plain" id="w-cc"><input id="cc" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="1496" value="1496"><span class="unit">cc</span></div>
+        <div class="err" id="e-cc"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="newTitle">
+    <h2 id="newTitle">New fill-up</h2>
+    <form id="form" class="fields" novalidate>
+      <div class="field">
+        <label for="date">Date</label>
+        <div class="input-wrap"><svg class="i"><use href="#ic-cal"/></svg><input id="date" type="date" required></div>
+      </div>
+      <div class="field">
+        <label for="fuel">Fuel purchased</label>
+        <div class="input-wrap" id="w-fuel"><svg class="i"><use href="#ic-fuel"/></svg><input id="fuel" inputmode="decimal" autocomplete="off" placeholder="0.00" value="40"><span class="unit" id="u-fuel">L</span></div>
+        <div class="err" id="e-fuel"></div>
+      </div>
+      <div class="field">
+        <label for="cost">Total spent</label>
+        <div class="input-wrap" id="w-cost"><svg class="i"><use href="#ic-coin"/></svg><input id="cost" inputmode="decimal" autocomplete="off" placeholder="0.00" value="82"><span class="unit" id="u-cost">MYR</span></div>
+        <div class="err" id="e-cost"></div>
+      </div>
+      <div class="field">
+        <label for="dist">Odometer reading now</label>
+        <div class="input-wrap" id="w-dist"><svg class="i"><use href="#ic-road"/></svg><input id="dist" inputmode="decimal" autocomplete="off" placeholder="Read it from the dashboard" value="47950"><span class="unit" id="u-dist">km</span></div>
+        <div class="hint" id="h-dist"></div>
+        <div class="err" id="e-dist"></div>
+      </div>
+    </form>
+    <p class="note" style="margin:0 0 12px">Fill the tank to full each time. Distance is the difference between this odometer reading and your last fill-up for the same car.</p>
+    <h2 style="margin-top:8px">Results</h2>
+    <div class="results" aria-live="polite">
+      <div class="res"><div class="lbl">Fuel economy</div><div class="val" id="r-eff">—</div></div>
+      <div class="res"><div class="lbl" id="l-rCost">Cost per km</div><div class="val" id="r-cost">—</div></div>
+      <div class="res"><div class="lbl" id="l-rPer">Distance per 1 MYR</div><div class="val" id="r-per">—</div></div>
+      <div class="res"><div class="lbl">Consumption</div><div class="val" id="r-cons">—</div></div>
+    </div>
+    <button class="btn" id="save" type="button">Save record</button>
+  </section>
+
+  <section class="card" aria-labelledby="trendTitle">
+    <h2 id="trendTitle">Trend over time</h2>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tab-eff" aria-selected="true" data-m="eff">Economy</button>
+      <button class="tab" role="tab" id="tab-cost" aria-selected="false" data-m="cost">Cost</button>
+      <button class="tab" role="tab" id="tab-cons" aria-selected="false" data-m="cons">Consumption</button>
+    </div>
+    <div class="chart" id="chart"></div>
+  </section>
+
+  <section class="card" aria-labelledby="histTitle">
+    <div class="hist-head">
+      <h2 id="histTitle">History</h2>
+      <select id="s-car" aria-label="Show records for"></select>
+    </div>
+    <ul class="hist" id="hist"></ul>
+  </section>
+</main>
+
+<script>
+(function () {
+  var KEY = "fuel-tracker-v3", SKEY = "fuel-tracker-settings-v2";
+  var memR = null, memS = null;
+  function lsGet(k, fallback) { try { var s = localStorage.getItem(k); if (s) return JSON.parse(s); } catch (e) {} return fallback; }
+  function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  function $(id) { return document.getElementById(id); }
+
+  /* Conversion constants */
+  var LPU = { L: 1, USgal: 3.785411784, UKgal: 4.54609 };   /* litres per unit */
+  var KPU = { km: 1, mi: 1.609344 };                          /* km per unit */
+  var VOL_LABEL = { L: "L", USgal: "US gal", UKgal: "UK gal" };
+  /* Approximate units per 1 USD, bundled offline. */
+  var RATES = { USD: 1, EUR: 0.92, GBP: 0.78, MYR: 4.45, SGD: 1.34, JPY: 150, AUD: 1.52, CAD: 1.37, NZD: 1.65, INR: 83, IDR: 15800, THB: 35.5, CNY: 7.2, HKD: 7.8, KRW: 1350, AED: 3.67, SAR: 3.75, CHF: 0.88, BRL: 5.0, ZAR: 18.5 };
+  var NAMES = { USD: "US Dollar", EUR: "Euro", GBP: "British Pound", MYR: "Malaysian Ringgit", SGD: "Singapore Dollar", JPY: "Japanese Yen", AUD: "Australian Dollar", CAD: "Canadian Dollar", NZD: "NZ Dollar", INR: "Indian Rupee", IDR: "Indonesian Rupiah", THB: "Thai Baht", CNY: "Chinese Yuan", HKD: "Hong Kong Dollar", KRW: "South Korean Won", AED: "UAE Dirham", SAR: "Saudi Riyal", CHF: "Swiss Franc", BRL: "Brazilian Real", ZAR: "South African Rand" };
+  var ZERO_DP = { JPY: 1, IDR: 1, KRW: 1 };
+
+  var S = lsGet(SKEY, null) || memS || { vol: "L", dist: "km", cur: "MYR" };
+  if (!LPU[S.vol]) S.vol = "L";
+  if (!KPU[S.dist]) S.dist = "km";
+  if (!RATES[S.cur]) S.cur = "MYR";
+  var EXAMPLE_CAR = { plate: "WXY 1234", make: "Perodua Myvi", year: "2021", cc: "1496" };
+  if (!S.car) S.car = { plate: EXAMPLE_CAR.plate, make: EXAMPLE_CAR.make, year: EXAMPLE_CAR.year, cc: EXAMPLE_CAR.cc };
+  var filterPlate = "";
+  function plateKey(c) { return ((c && c.plate) || "").toUpperCase().replace(/\s+/g, ""); }
+  function carLine(c) { return [c.plate, c.make, c.year, c.cc ? c.cc + " cc" : ""].filter(Boolean).join(" · "); }
+
+  function convertCost(x, from, to) { return x / RATES[from] * RATES[to]; }
+  function money(x, cur, dp) {
+    var d = dp == null ? (ZERO_DP[cur] ? 0 : 2) : dp;
+    try { return x.toLocaleString("en", { style: "currency", currency: cur, minimumFractionDigits: d, maximumFractionDigits: d, currencyDisplay: "narrowSymbol" }); }
+    catch (e) { return cur + " " + x.toFixed(d); }
+  }
+  function effUnit() {
+    if (S.dist === "mi" && S.vol === "USgal") return "mpg (US)";
+    if (S.dist === "mi" && S.vol === "UKgal") return "mpg (UK)";
+    return S.dist + "/" + VOL_LABEL[S.vol];
+  }
+  function consUnit() { return VOL_LABEL[S.vol] + "/100" + S.dist; }
+
+  var records = lsGet(KEY, null) || memR;
+  function day(n) {
+    var d = new Date(); d.setDate(d.getDate() - n);
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  if (!records) {
+    /* Stored in litres, km and the currency each record was entered in. */
+    records = [
+      { id: 0, date: day(42), fuelL: 40.0, odoKm: 45000, cost: 82.0, cur: "MYR", car: EXAMPLE_CAR, sample: true },
+      { id: 1, date: day(35), fuelL: 38.5, odoKm: 45470, cost: 78.9, cur: "MYR", car: EXAMPLE_CAR, sample: true },
+      { id: 2, date: day(28), fuelL: 41.2, odoKm: 45975, cost: 84.5, cur: "MYR", car: EXAMPLE_CAR, sample: true },
+      { id: 3, date: day(20), fuelL: 36.8, odoKm: 46413, cost: 75.4, cur: "MYR", car: EXAMPLE_CAR, sample: true },
+      { id: 4, date: day(12), fuelL: 40.0, odoKm: 46933, cost: 82.0, cur: "MYR", car: EXAMPLE_CAR, sample: true },
+      { id: 5, date: day(5), fuelL: 39.4, odoKm: 47430, cost: 80.8, cur: "MYR", car: EXAMPLE_CAR, sample: true }
+    ];
+    lsSet(KEY, records); memR = records;
+  }
+
+  /* Core math in display units: f = volume, c = money, d = distance */
+  function calc(f, c, d) {
+    return { eff: d / f, cost: c / d, per: d / c, cons: f / d * 100 };
+  }
+  function cmp(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : a.id - b.id; }
+  /* Distance for each fill-up = its odometer minus the previous odometer of the same car. */
+  var DIST = {};
+  function computeDist() {
+    var by = {};
+    DIST = {};
+    records.forEach(function (r) { var k = plateKey(r.car); (by[k] = by[k] || []).push(r); });
+    Object.keys(by).forEach(function (k) {
+      by[k].sort(cmp);
+      by[k].forEach(function (r, i) {
+        var d = i ? r.odoKm - by[k][i - 1].odoKm : null;
+        DIST[r.id] = d != null && d > 0 ? d : null;
+      });
+    });
+  }
+  function tripInfo(plate, date, odoKm) {
+    var k = plateKey({ plate: plate }), prev = null, next = null;
+    records.filter(function (r) { return plateKey(r.car) === k; }).sort(cmp).forEach(function (r) {
+      if (r.date <= date) prev = r; else if (!next) next = r;
+    });
+    var out = { prev: prev, next: next, dist: prev ? odoKm - prev.odoKm : null, err: "" };
+    if (prev && odoKm <= prev.odoKm) out.err = "Must be higher than your last reading (" + (prev.odoKm / KPU[S.dist]).toLocaleString("en", { maximumFractionDigits: 1 }) + " " + S.dist + ").";
+    else if (next && odoKm >= next.odoKm) out.err = "Must be lower than the next reading (" + (next.odoKm / KPU[S.dist]).toLocaleString("en", { maximumFractionDigits: 1 }) + " " + S.dist + ") on a later date.";
+    return out;
+  }
+  /* Returns null for a starting-point record (no earlier odometer reading). */
+  function view(r) {
+    var dk = DIST[r.id];
+    if (dk == null) return null;
+    var f = r.fuelL / LPU[S.vol], d = dk / KPU[S.dist], c = convertCost(r.cost, r.cur, S.cur);
+    var m = calc(f, c, d); m.id = r.id; m.date = r.date; m.f = f; m.c = c; m.d = d; m.sample = r.sample;
+    return m;
+  }
+
+  function num(s) {
+    s = String(s).trim().replace(",", ".");
+    if (s === "") return { empty: true };
+    if (!/^-?(\d+\.?\d*|\.\d+)$/.test(s)) return { bad: true };
+    return { v: parseFloat(s) };
+  }
+  function check(id) {
+    var n = num($(id).value);
+    if (n.empty) return { err: "Enter a value." };
+    if (n.bad) return { err: "Use numbers only, for example 40.5." };
+    if (n.v < 0) return { err: "Value cannot be negative." };
+    if (n.v === 0) return { err: "Value must be greater than zero." };
+    return { v: n.v };
+  }
+  var touched = {};
+  function shown() {
+    return filterPlate ? records.filter(function (r) { return plateKey(r.car) === filterPlate; }) : records;
+  }
+  function checkCar(id) {
+    var s = $(id).value.trim();
+    if (id === "plate") {
+      if (!s) return { err: "Enter your car plate number." };
+      if (!/^[A-Za-z0-9 -]{2,12}$/.test(s) || !/[A-Za-z0-9]/.test(s)) return { err: "Use letters, numbers and spaces only." };
+      return { v: s.toUpperCase().replace(/\s+/g, " ") };
+    }
+    if (id === "make") {
+      if (!s) return { err: "Enter the car make and model." };
+      return { v: s };
+    }
+    var n = Number(s), maxYear = new Date().getFullYear() + 1;
+    if (id === "year") {
+      if (!s) return { err: "Enter the year." };
+      if (!/^\d{4}$/.test(s) || n < 1950 || n > maxYear) return { err: "Enter a year from 1950 to " + maxYear + "." };
+      return { v: s };
+    }
+    if (!s) return { err: "Enter the engine size." };
+    if (!/^\d{2,5}$/.test(s) || n < 50 || n > 10000) return { err: "Enter cc as a whole number, 50 to 10000." };
+    return { v: s };
+  }
+  function updateCar() {
+    var ok = true, car = {};
+    ["plate", "make", "year", "cc"].forEach(function (id) {
+      var r = checkCar(id);
+      $("e-" + id).textContent = r.err && touched[id] ? r.err : "";
+      $("w-" + id).classList.toggle("bad", !!(r.err && touched[id]));
+      if (r.err) ok = false; else car[id] = r.v;
+    });
+    if (ok) { S.car = car; saveSettings(); }
+    return ok ? car : null;
+  }
+
+  function updateForm() {
+    var car = updateCar();
+    var ok = true, v = {};
+    ["fuel", "cost", "dist"].forEach(function (id) {
+      var r = check(id);
+      $("e-" + id).textContent = r.err && touched[id] ? r.err : "";
+      $("w-" + id).classList.toggle("bad", !!(r.err && touched[id]));
+      if (r.err) ok = false; else v[id] = r.v;
+    });
+    var dateOk = /^\d{4}-\d{2}-\d{2}$/.test($("date").value);
+    var info = null, tripOk = true;
+    $("h-dist").textContent = "";
+    if (v.dist != null && car && dateOk) {
+      info = tripInfo(car.plate, $("date").value, v.dist * KPU[S.dist]);
+      if (info.err) {
+        tripOk = false;
+        if (touched.dist) { $("e-dist").textContent = info.err; $("w-dist").classList.add("bad"); }
+      } else if (info.prev) {
+        $("h-dist").textContent = "Distance since last fill-up: " + (info.dist / KPU[S.dist]).toLocaleString("en", { maximumFractionDigits: 1 }) + " " + S.dist;
+      } else {
+        $("h-dist").textContent = "First record for this car. It becomes your starting point; economy shows from the next fill-up.";
+      }
+    } else if (car) {
+      var ref = records.filter(function (x) { return plateKey(x.car) === plateKey(car); }).sort(cmp).pop();
+      if (ref) $("h-dist").textContent = "Last reading: " + (ref.odoKm / KPU[S.dist]).toLocaleString("en", { maximumFractionDigits: 1 }) + " " + S.dist;
+    }
+    if (ok && info && info.prev && !info.err) {
+      var r = calc(v.fuel, v.cost, info.dist / KPU[S.dist]);
+      $("r-eff").innerHTML = r.eff.toFixed(1) + " <small>" + effUnit() + "</small>";
+      $("r-cost").innerHTML = money(r.cost, S.cur, ZERO_DP[S.cur] ? 1 : 2) + " <small>/" + S.dist + "</small>";
+      $("r-per").innerHTML = r.per.toFixed(2) + " <small>" + S.dist + "</small>";
+      $("r-cons").innerHTML = r.cons.toFixed(2) + " <small>" + consUnit() + "</small>";
+    } else {
+      ["r-eff", "r-cost", "r-per", "r-cons"].forEach(function (k) { $(k).textContent = "—"; });
+    }
+    $("save").disabled = !(ok && dateOk && car && tripOk);
+    if (ok && dateOk && car && tripOk) { v.car = car; return v; }
+    return null;
+  }
+
+  function renderLabels() {
+    $("u-fuel").textContent = VOL_LABEL[S.vol];
+    $("u-cost").textContent = S.cur;
+    $("u-dist").textContent = S.dist;
+    $("l-rCost").textContent = "Cost per " + S.dist;
+    $("l-rPer").textContent = "Distance per 1 " + S.cur;
+    $("l-avgCost").textContent = "Avg cost per " + S.dist;
+    $("l-avgCons").textContent = "Avg " + consUnit();
+    $("tab-eff").textContent = effUnit();
+    $("tab-cost").textContent = S.cur + "/" + S.dist;
+    $("tab-cons").textContent = consUnit();
+  }
+
+  function renderSummary() {
+    if (!shown().length) {
+      ["avgEff", "avgCost", "avgCons", "totDist", "totCost"].forEach(function (k) { $(k).textContent = "—"; });
+      return;
+    }
+    var F = 0, C = 0, D = 0;
+    shown().forEach(function (r) { var v = view(r); if (v) { F += v.f; C += v.c; D += v.d; } });
+    if (!D) {
+      ["avgEff", "avgCost", "avgCons", "totDist", "totCost"].forEach(function (k) { $(k).textContent = "—"; });
+      return;
+    }
+    var a = calc(F, C, D);
+    $("avgEff").innerHTML = a.eff.toFixed(1) + " <small>" + effUnit() + "</small>";
+    $("avgCost").innerHTML = money(a.cost, S.cur, ZERO_DP[S.cur] ? 1 : 2);
+    $("avgCons").innerHTML = a.cons.toFixed(2);
+    $("totDist").innerHTML = Math.round(D).toLocaleString("en") + " <small>" + S.dist + "</small>";
+    $("totCost").innerHTML = money(C, S.cur);
+  }
+
+  function parts(s) { var p = s.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function dateLabel(s) { return parts(s).toLocaleDateString("en", { day: "numeric", month: "short", year: "numeric" }); }
+  function shortLabel(s) { return parts(s).toLocaleDateString("en", { day: "numeric", month: "short" }); }
+  function sorted() { return shown().slice().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : a.id - b.id; }); }
+
+  function renderHistory() {
+    var ul = $("hist");
+    ul.innerHTML = "";
+    if (!shown().length) {
+      var li0 = document.createElement("li");
+      li0.innerHTML = '<div class="empty">No records yet. Fill in the form above and save your first one.</div>';
+      ul.appendChild(li0);
+      return;
+    }
+    sorted().reverse().forEach(function (r0) {
+      var r = view(r0), li = document.createElement("li");
+      var pl = r0.car && r0.car.plate ? '<span class="plate-tag">' + esc(r0.car.plate) + '</span>' : "";
+      var odo = (r0.odoKm / KPU[S.dist]).toLocaleString("en", { maximumFractionDigits: 1 }) + ' ' + S.dist;
+      var head = '<div class="h-main"><div class="h-top"><span class="h-date">' + dateLabel(r0.date) + pl + (r0.sample ? '<span class="tag">EXAMPLE</span>' : "") + '</span>';
+      var del = '<button class="del" type="button" aria-label="Delete record from ' + dateLabel(r0.date) + '"><svg class="i"><use href="#ic-trash"/></svg></button>';
+      if (r) {
+        li.innerHTML = head + '<span class="h-eff">' + r.eff.toFixed(1) + ' ' + effUnit() + '</span></div>' +
+          '<div class="h-det">Odometer ' + odo + ' (+' + r.d.toFixed(1) + ' ' + S.dist + ') · ' + r.f.toFixed(2) + ' ' + VOL_LABEL[S.vol] + ' · ' + money(r.c, S.cur) + ' · ' +
+          money(r.cost, S.cur, ZERO_DP[S.cur] ? 1 : 2) + '/' + S.dist + ' · ' + r.cons.toFixed(2) + ' ' + consUnit() + '</div></div>' + del;
+      } else {
+        li.innerHTML = head + '<span class="h-det">Starting point</span></div><div class="h-det">Odometer ' + odo + '. Economy is worked out from the next fill-up.</div></div>' + del;
+      }
+      li.querySelector(".del").addEventListener("click", function () {
+        records = records.filter(function (x) { return x.id !== r0.id; });
+        persist();
+      });
+      ul.appendChild(li);
+    });
+  }
+
+  var metric = "eff";
+  function renderChart() {
+    var box = $("chart"), pts = sorted().map(view).filter(Boolean);
+    if (pts.length < 2) { box.innerHTML = '<div class="empty">Save at least two records to see a trend.</div>'; return; }
+    var dp = metric === "eff" ? 1 : (metric === "cost" ? (ZERO_DP[S.cur] ? 1 : 2) : 2);
+    var unit = metric === "eff" ? effUnit() : metric === "cost" ? S.cur + "/" + S.dist : consUnit();
+    var W = 340, H = 190, L = 40, R = 14, T = 16, B = 28;
+    var vals = pts.map(function (p) { return p[metric]; });
+    var mn = Math.min.apply(null, vals), mx = Math.max.apply(null, vals);
+    var pad = (mx - mn) * 0.2 || mx * 0.1 || 1;
+    var lo = Math.max(0, mn - pad), hi = mx + pad;
+    function X(i) { return L + (W - L - R) * (i / (pts.length - 1)); }
+    function Y(v) { return T + (H - T - B) * (1 - (v - lo) / (hi - lo)); }
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Line chart of ' + unit + ' over time">';
+    for (var g = 0; g <= 3; g++) {
+      var gv = lo + (hi - lo) * g / 3, gy = Y(gv);
+      s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + gy + '" y2="' + gy + '" stroke="var(--line)" stroke-width="1"/>';
+      s += '<text x="' + (L - 6) + '" y="' + (gy + 3) + '" text-anchor="end">' + gv.toFixed(dp) + '</text>';
+    }
+    var path = pts.map(function (p, i) { return (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(p[metric]).toFixed(1); }).join(" ");
+    s += '<path d="' + path + " L" + X(pts.length - 1).toFixed(1) + " " + (H - B) + " L" + X(0).toFixed(1) + " " + (H - B) + ' Z" fill="var(--accent)" opacity="0.12"/>';
+    s += '<path d="' + path + '" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
+    pts.forEach(function (p, i) {
+      var last = i === pts.length - 1;
+      s += '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(p[metric]).toFixed(1) + '" r="' + (last ? 5 : 3.5) + '" fill="' + (last ? "var(--accent)" : "var(--surface)") + '" stroke="var(--accent)" stroke-width="2"/>';
+    });
+    var lp = pts[pts.length - 1];
+    s += '<text x="' + (X(pts.length - 1) - 6) + '" y="' + (Y(lp[metric]) - 10) + '" text-anchor="end" style="fill:var(--ink);font-weight:700;font-size:11px">' + lp[metric].toFixed(dp) + ' ' + unit + '</text>';
+    var step = Math.ceil(pts.length / 5);
+    pts.forEach(function (p, i) {
+      if (i % step === 0 || i === pts.length - 1) {
+        s += '<text x="' + X(i).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="' + (i === 0 ? "start" : i === pts.length - 1 ? "end" : "middle") + '">' + shortLabel(p.date) + '</text>';
+      }
+    });
+    box.innerHTML = s + "</svg>";
+  }
+
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function renderCars() {
+    var sel = $("s-car"), seen = {}, opts = [{ k: "", t: "All cars" }];
+    records.forEach(function (r) {
+      var k = plateKey(r.car);
+      if (k && !seen[k]) { seen[k] = 1; opts.push({ k: k, t: r.car.plate + (r.car.make ? " · " + r.car.make : "") }); }
+    });
+    if (filterPlate && !seen[filterPlate]) filterPlate = "";
+    sel.innerHTML = opts.map(function (o) { return '<option value="' + esc(o.k) + '">' + esc(o.t) + '</option>'; }).join("");
+    sel.value = filterPlate;
+  }
+  function persist() { memR = records; lsSet(KEY, records); renderAll(); }
+  function renderAll() {
+    computeDist(); renderLabels(); renderCars(); $("carSub").textContent = carLine(S.car); renderSummary(); renderHistory(); renderChart(); updateForm();
+    $("sampleBanner").hidden = !records.some(function (r) { return r.sample; });
+  }
+
+  /* Currency list */
+  Object.keys(RATES).forEach(function (c) {
+    var o = document.createElement("option");
+    o.value = c; o.textContent = c + " · " + NAMES[c];
+    $("s-cur").appendChild(o);
+  });
+  $("s-vol").value = S.vol; $("s-dist").value = S.dist; $("s-cur").value = S.cur;
+  function saveSettings() { memS = S; lsSet(SKEY, S); }
+  $("s-vol").addEventListener("change", function () { S.vol = this.value; saveSettings(); renderAll(); });
+  $("s-dist").addEventListener("change", function () { S.dist = this.value; saveSettings(); renderAll(); });
+  $("s-cur").addEventListener("change", function () { S.cur = this.value; saveSettings(); renderAll(); });
+
+  ["fuel", "cost", "dist", "plate", "make", "year", "cc"].forEach(function (id) {
+    $(id).addEventListener("input", function () { touched[id] = true; updateForm(); });
+    $(id).addEventListener("blur", function () { touched[id] = true; updateForm(); });
+  });
+  $("plate").addEventListener("blur", function () { var r = checkCar("plate"); if (r.v) this.value = r.v; });
+  $("s-car").addEventListener("change", function () { filterPlate = this.value; renderAll(); });
+  $("date").addEventListener("input", function () { touched.dist = true; updateForm(); });
+  $("form").addEventListener("submit", function (e) { e.preventDefault(); });
+
+  $("save").addEventListener("click", function () {
+    touched = { fuel: true, cost: true, dist: true, plate: true, make: true, year: true, cc: true };
+    var v = updateForm();
+    if (!v) return;
+    var id = records.reduce(function (m, r) { return Math.max(m, r.id); }, 0) + 1;
+    records.push({ id: id, date: $("date").value, fuelL: v.fuel * LPU[S.vol], odoKm: v.dist * KPU[S.dist], cost: v.cost, cur: S.cur, car: v.car });
+    ["fuel", "cost", "dist"].forEach(function (k) { $(k).value = ""; });
+    touched = {};
+    persist();
+    $("fuel").focus();
+  });
+  $("clearSamples").addEventListener("click", function () {
+    records = records.filter(function (r) { return !r.sample; });
+    persist();
+  });
+  document.querySelectorAll(".tab").forEach(function (t) {
+    t.addEventListener("click", function () {
+      metric = t.getAttribute("data-m");
+      document.querySelectorAll(".tab").forEach(function (o) { o.setAttribute("aria-selected", o === t ? "true" : "false"); });
+      renderChart();
+    });
+  });
+  $("themeBtn").addEventListener("click", function () {
+    var root = document.documentElement, cur = root.getAttribute("data-theme");
+    if (!cur) cur = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    root.setAttribute("data-theme", cur === "dark" ? "light" : "dark");
+  });
+
+  ["plate", "make", "year", "cc"].forEach(function (k) { $(k).value = S.car[k] || ""; });
+  var d = new Date();
+  $("date").value = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  renderAll();
+})();
+</script>
+<script>
+if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {
+  window.addEventListener("load", function () { try { navigator.serviceWorker.register("sw.js").catch(function () {}); } catch (e) {} });
+}
+</script>
+</body>
+</html>
