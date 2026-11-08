@@ -96,18 +96,20 @@ h2 { font-family: var(--font-display); font-size: 0.95rem; margin: 0 0 12px; fon
 .banner { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--amber-soft); color: var(--ink); border-radius: 12px; padding: 10px 12px; font-size: 0.85rem; }
 .banner[hidden] { display: none; }
 .banner button { background: none; border: 0; color: var(--amber); font: inherit; font-weight: 600; cursor: pointer; padding: 8px; min-height: 44px; }
-.settings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.settings { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.settings > :nth-child(3) { grid-column: span 2; }
 .settings label { display: block; font-size: 0.72rem; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
 select { width: 100%; min-height: 46px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--bg); color: var(--ink); font: inherit; font-size: 0.95rem; font-weight: 500; padding: 0 8px; }
 select:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
 .note { color: var(--muted); font-size: 0.75rem; margin: 10px 0 0; }
-.fields { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.field { min-width: 0; }
 .field label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 6px; color: var(--muted); }
-.input-wrap { display: flex; align-items: center; gap: 10px; border: 1.5px solid var(--line); border-radius: 14px; padding: 0 14px; background: var(--bg); min-height: 52px; }
+.input-wrap { min-width: 0; display: flex; align-items: center; gap: 10px; border: 1.5px solid var(--line); border-radius: 14px; padding: 0 14px; background: var(--bg); min-height: 52px; }
 .input-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .input-wrap.bad { border-color: var(--danger); }
 .input-wrap .i { color: var(--accent); }
-.input-wrap input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 1.1rem; font-weight: 500; padding: 12px 0; outline: none; font-variant-numeric: tabular-nums; }
+.input-wrap input { flex: 1; width: 100%; min-width: 0; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 1.1rem; font-weight: 500; padding: 12px 0; outline: none; font-variant-numeric: tabular-nums; }
 .unit { color: var(--muted); font-weight: 600; font-size: 0.9rem; }
 .garage { display: flex; gap: 8px; margin-bottom: 12px; }
 .garage select { flex: 1; min-width: 0; min-height: 48px; }
@@ -129,6 +131,9 @@ select:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
 .last { display: flex; align-items: center; gap: 10px; background: var(--accent-soft); color: var(--ink); border-radius: 12px; padding: 10px 12px; margin-bottom: 14px; font-size: 0.88rem; }
 .last .i { color: var(--accent); }
 .last b { font-family: var(--font-display); font-variant-numeric: tabular-nums; }
+input[type="date"] { -webkit-appearance: none; appearance: none; text-align: left; min-width: 0; }
+input[type="date"]::-webkit-date-and-time-value { text-align: left; }
+input[type="date"]::-webkit-datetime-edit { padding: 0; }
 .hint { color: var(--muted); font-size: 0.78rem; margin-top: 4px; }
 .err { color: var(--danger); font-size: 0.78rem; min-height: 1.1em; margin-top: 4px; }
 .results { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
@@ -156,7 +161,7 @@ ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
 .tag { font-size: 0.65rem; background: var(--amber-soft); color: var(--amber); border-radius: 6px; padding: 1px 6px; margin-left: 6px; font-weight: 700; vertical-align: middle; }
 .del { border: 0; background: transparent; color: var(--muted); width: 44px; height: 44px; border-radius: 10px; cursor: pointer; display: grid; place-items: center; }
 .del:hover { color: var(--danger); }
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
 .grid2 .wide { grid-column: span 2; }
 .input-wrap.plain { padding: 0 12px; }
 .input-wrap.plain input { font-size: 1rem; }
@@ -165,7 +170,7 @@ ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
 .hist-head h2 { margin: 0; }
 .hist-head select { width: auto; max-width: 55%; min-height: 40px; }
 .plate-tag { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; margin-left: 6px; color: var(--ink); vertical-align: middle; white-space: nowrap; }
-@media (max-width: 360px) { .settings { grid-template-columns: 1fr; } .grid2 { grid-template-columns: 1fr; } .grid2 .wide { grid-column: auto; } }
+@media (max-width: 360px) { .settings { grid-template-columns: minmax(0, 1fr); } .settings > :nth-child(3) { grid-column: auto; } .grid2 { grid-template-columns: minmax(0, 1fr); } .grid2 .wide { grid-column: auto; } }
 @media (prefers-reduced-motion: no-preference) { .btn, .input-wrap { transition: box-shadow .15s, border-color .15s, opacity .15s; } }
 </style>
 </head>
@@ -274,6 +279,7 @@ ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
       <div class="field">
         <label for="date">Date</label>
         <div class="input-wrap"><svg class="i"><use href="#ic-cal"/></svg><input id="date" type="date" required></div>
+        <div class="err"></div>
       </div>
       <div class="field">
         <label for="fuel">Fuel purchased</label>
@@ -507,6 +513,7 @@ ul.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
     if (!force && el.value !== "" && el.value !== odoAuto) return;
     odoAuto = last ? String(+(last.odoKm / KPU[S.dist]).toFixed(1)) : "";
     el.value = odoAuto;
+    if (force && (!last || !last.sample)) { $("fuel").value = ""; $("cost").value = ""; }
   }
   function renderLast() {
     var box = $("lastFill");
